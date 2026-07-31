@@ -1,0 +1,63 @@
+<main>
+  <section>
+    <h2>Latency Results</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Test Condition</th>
+          <th>Semaphore Maximum</th>
+          <th>Notification Maximum</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <td>Idle</td>
+          <td>Insert verified result</td>
+          <td>Insert verified result</td>
+        </tr>
+
+        <tr>
+          <td>Background load enabled</td>
+          <td>Insert verified result</td>
+          <td>Insert verified result</td>
+        </tr>
+
+        <tr>
+          <td>ISR yield removed</td>
+          <td>Insert verified result</td>
+          <td>Insert verified result</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Fault Injection</h2>
+
+    <p>
+      The fault was introduced by removing portYIELD_FROM_ISR(). The
+      notification and semaphore were still delivered, but the awakened
+      tasks did not receive an immediate scheduling opportunity. This
+      demonstrated that functional correctness does not guarantee
+      acceptable real-time response.
+    </p>
+  </section>
+
+  <section>
+    <h2>Engineering Analysis</h2>
+
+    <h3>Why keep the ISR short?</h3>
+    <p>Add your answer here.</p>
+
+    <h3>Why use a bottom-half task?</h3>
+    <p>Add your answer here.</p>
+
+    <h3>Direct notification versus binary semaphore</h3>
+    <p>Add your measured comparison here.</p>
+
+    <h3>How did background load affect latency?</h3>
+    <p>Add your answer here.</p>
+  </section>
+</main>
