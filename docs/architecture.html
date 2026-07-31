@@ -1,0 +1,91 @@
+<main>
+  <section>
+    <h2>System Architecture</h2>
+
+    <p>
+      The GPIO interrupt records the ISR entry time and signals two
+      bottom-half tasks. One task waits on a binary semaphore, while
+      the other waits on a direct task notification.
+    </p>
+
+    <img
+      src="assets/architecture-diagram.png"
+      alt="Concurrency diagram for the emergency-stop controller"
+    >
+  </section>
+
+  <section>
+    <h2>FreeRTOS Task Table</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Period or Trigger</th>
+          <th>Priority</th>
+          <th>Purpose</th>
+          <th>WCET</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <td>Task A</td>
+          <td>10 ms</td>
+          <td>15</td>
+          <td>Highest-priority background workload</td>
+          <td>Add measured value</td>
+        </tr>
+
+        <tr>
+          <td>Notification responder</td>
+          <td>GPIO interrupt</td>
+          <td>12</td>
+          <td>Direct-notification response path</td>
+          <td>Add measured value</td>
+        </tr>
+
+        <tr>
+          <td>Semaphore responder</td>
+          <td>GPIO interrupt</td>
+          <td>12</td>
+          <td>Binary-semaphore response path</td>
+          <td>Add measured value</td>
+        </tr>
+
+        <tr>
+          <td>Task B</td>
+          <td>20 ms</td>
+          <td>10</td>
+          <td>Background workload</td>
+          <td>Add measured value</td>
+        </tr>
+
+        <tr>
+          <td>Task C</td>
+          <td>50 ms</td>
+          <td>5</td>
+          <td>Background workload</td>
+          <td>Add measured value</td>
+        </tr>
+
+        <tr>
+          <td>Task D</td>
+          <td>100 ms</td>
+          <td>2</td>
+          <td>Background workload</td>
+          <td>Add measured value</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>WCET Evidence</h2>
+
+    <img
+      src="assets/wcet-evidence.png"
+      alt="Serial output showing measured WCET values"
+    >
+  </section>
+</main>
