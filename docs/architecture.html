@@ -1,91 +1,200 @@
-<main>
-  <section>
-    <h2>System Architecture</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Architecture | Drop Tower Emergency-Stop Controller</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>System Architecture</h1>
 
     <p>
-      The GPIO interrupt records the ISR entry time and signals two
-      bottom-half tasks. One task waits on a binary semaphore, while
-      the other waits on a direct task notification.
+      FreeRTOS concurrency, task priorities, interrupt handling,
+      and worst-case execution-time evidence.
     </p>
+  </header>
 
-    <img
-      src="assets/architecture-diagram.png"
-      alt="Concurrency diagram for the emergency-stop controller"
-    >
-  </section>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="results.html">Results & Analysis</a>
+    <a href="reflection.html">Reflection</a>
+  </nav>
 
-  <section>
-    <h2>FreeRTOS Task Table</h2>
+  <main>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Task</th>
-          <th>Period or Trigger</th>
-          <th>Priority</th>
-          <th>Purpose</th>
-          <th>WCET</th>
-        </tr>
-      </thead>
+    <section>
+      <h2>System and Concurrency Diagram</h2>
 
-      <tbody>
-        <tr>
-          <td>Task A</td>
-          <td>10 ms</td>
-          <td>15</td>
-          <td>Highest-priority background workload</td>
-          <td>Add measured value</td>
-        </tr>
+      <p>
+        Pressing the emergency-stop button on GPIO 18 generates an
+        active-low interrupt. The interrupt service routine records its
+        entry time, pulses GPIO 19 for the logic analyzer, and signals
+        two FreeRTOS responder tasks using a binary semaphore and a
+        direct task notification.
+      </p>
 
-        <tr>
-          <td>Notification responder</td>
-          <td>GPIO interrupt</td>
-          <td>12</td>
-          <td>Direct-notification response path</td>
-          <td>Add measured value</td>
-        </tr>
+      <p>
+        Both responder tasks run on Core 1 at priority 12. When the
+        background workload is enabled, Task A has priority 15 and can
+        preempt the responders. Tasks B, C, and D have lower priorities
+        and cannot preempt a responder after it begins executing.
+      </p>
 
-        <tr>
-          <td>Semaphore responder</td>
-          <td>GPIO interrupt</td>
-          <td>12</td>
-          <td>Binary-semaphore response path</td>
-          <td>Add measured value</td>
-        </tr>
+      <img
+        src="assets/concurrency-diagram.png"
+        alt="Concurrency diagram for the drop tower emergency-stop controller"
+      >
+    </section>
 
-        <tr>
-          <td>Task B</td>
-          <td>20 ms</td>
-          <td>10</td>
-          <td>Background workload</td>
-          <td>Add measured value</td>
-        </tr>
+    <section>
+      <h2>Task and Priority Table</h2>
 
-        <tr>
-          <td>Task C</td>
-          <td>50 ms</td>
-          <td>5</td>
-          <td>Background workload</td>
-          <td>Add measured value</td>
-        </tr>
+      <p>
+        The two interrupt-response tasks use the same priority so the
+        experiment can compare the two signaling methods under similar
+        scheduling conditions. Tasks A through D create a controlled
+        background workload when WITH_LOAD is set to 1.
+      </p>
 
-        <tr>
-          <td>Task D</td>
-          <td>100 ms</td>
-          <td>2</td>
-          <td>Background workload</td>
-          <td>Add measured value</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Trigger or Period</th>
+            <th>Priority</th>
+            <th>Core</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
 
-  <section>
-    <h2>WCET Evidence</h2>
+        <tbody>
+          <tr>
+            <td>Task A</td>
+            <td>10 ms</td>
+            <td>15</td>
+            <td>1</td>
+            <td>
+              Highest-priority background workload. It can preempt both
+              responder tasks.
+            </td>
+          </tr>
 
-    <img
-      src="assets/wcet-evidence.png"
-      alt="Serial output showing measured WCET values"
-    >
-  </section>
-</main>
+          <tr>
+            <td>Semaphore responder</td>
+            <td>GPIO interrupt</td>
+            <td>12</td>
+            <td>1</td>
+            <td>
+              Receives the emergency event through a binary semaphore
+              and measures ISR-to-task latency.
+            </td>
+          </tr>
+
+          <tr>
+            <td>Notification responder</td>
+            <td>GPIO interrupt</td>
+            <td>12</td>
+            <td>1</td>
+            <td>
+              Receives the emergency event through a direct task
+              notification and measures ISR-to-task latency.
+            </td>
+          </tr>
+
+          <tr>
+            <td>Task B</td>
+            <td>20 ms</td>
+            <td>10</td>
+            <td>1</td>
+            <td>
+              Performs a single-precision FIR workload to create
+              processor demand.
+            </td>
+          </tr>
+
+          <tr>
+            <td>Task C</td>
+            <td>50 ms</td>
+            <td>5</td>
+            <td>1</td>
+            <td>
+              Calculates CRC-32 over a buffer as a periodic background
+              workload.
+            </td>
+          </tr>
+
+          <tr>
+            <td>Task D</td>
+            <td>100 ms</td>
+            <td>2</td>
+            <td>1</td>
+            <td>
+              Runs a worst-case insertion sort at the lowest background
+              priority.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>WCET Evidence</h2>
+
+      <p>
+        Each periodic background task records its maximum observed
+        execution time using the ESP32 microsecond timer. Heartbeat
+        counters are also used to confirm that all four tasks continue
+        executing while the interrupt-response experiment is running.
+      </p>
+
+      <img
+        src="assets/wcet-evidence.png"
+        alt="Serial monitor showing heartbeat counters and measured WCET values"
+      >
+
+      <p>
+        WCET measurements are taken around only the computational work
+        of each task. The periodic delay is not included in the measured
+        execution time.
+      </p>
+    </section>
+
+    <section>
+      <h2>Interrupt and Bottom-Half Design</h2>
+
+      <p>
+        The ISR is intentionally short. It debounces the input, records
+        timing information, pulses the logic-analyzer output, signals the
+        two responder tasks, and requests a scheduler yield when needed.
+        Longer operations such as logging and emergency-response handling
+        are deferred to the bottom-half tasks.
+      </p>
+
+      <pre><code>Emergency-stop button
+        |
+        v
+GPIO interrupt service routine
+        |
+        +---- Binary semaphore --------> Semaphore responder
+        |
+        +---- Direct notification -----> Notification responder
+                                             |
+                                             v
+                               Safe-state response and logging</code></pre>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>ULMER-FINAL-RTS26Summer</p>
+  </footer>
+
+</body>
+</html>
