@@ -1,33 +1,125 @@
-<section>
-  <h2>Project Links</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
 
-  <p>
-    <a
-      href="https://wokwi.com/projects/467902690408566785"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Open the Wokwi Simulation
-    </a>
-  </p>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-  <p>
-    <a
-      href="https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Watch the Demonstration Video
-    </a>
-  </p>
+  <title>Drop Tower Emergency-Stop Controller</title>
 
-  <p>
-    <a
-      href="https://github.com/Peyton-U/ULMER-FINAL-RTS26Summer/blob/main/README.md"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Read the Full Technical README
-    </a>
-  </p>
-</section>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>Real-Time Drop Tower Emergency-Stop Controller</h1>
+
+    <p>
+      An ESP32-S3 and FreeRTOS project comparing interrupt-to-task
+      response latency using a binary semaphore and a direct task
+      notification.
+    </p>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="results.html">Results &amp; Analysis</a>
+    <a href="reflection.html">Reflection</a>
+  </nav>
+
+  <main>
+
+    <section>
+      <h2>Project Overview</h2>
+
+      <p>
+        This project models an industrial emergency-stop controller for
+        a drop-tower attraction. Pressing the emergency-stop button
+        generates a GPIO interrupt that wakes two FreeRTOS responder
+        tasks.
+      </p>
+
+      <p>
+        The project compares a binary semaphore and a direct task
+        notification under idle, loaded, and fault-injection conditions.
+        It demonstrates how task priorities, processor load, and ISR
+        design affect real-time response latency.
+      </p>
+    </section>
+
+    <section>
+      <h2>Project Links</h2>
+
+      <p>
+        <a
+          href="https://wokwi.com/projects/467902690408566785"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open the Wokwi Simulation
+        </a>
+      </p>
+
+      <p>
+        <a
+          href="https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Watch the Demonstration Video
+        </a>
+      </p>
+
+      <p>
+        <a
+          href="https://github.com/Peyton-U/ULMER-FINAL-RTS26Summer/blob/main/README.md"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Read the Full Technical README
+        </a>
+      </p>
+    </section>
+
+    <section>
+      <h2>Technologies Used</h2>
+
+      <ul>
+        <li>ESP32-S3</li>
+        <li>FreeRTOS</li>
+        <li>GPIO interrupts</li>
+        <li>Binary semaphores</li>
+        <li>Direct task notifications</li>
+        <li>Priority-based scheduling</li>
+        <li>WCET measurement</li>
+        <li>Logic-analyzer timing</li>
+        <li>Wokwi simulation</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Engineering Skills Demonstrated</h2>
+
+      <ul>
+        <li>Interrupt-safe ISR-to-task communication</li>
+        <li>Real-time task and priority design</li>
+        <li>Latency measurement under processor load</li>
+        <li>Fault injection and failure analysis</li>
+        <li>Safe-state reasoning for industrial systems</li>
+        <li>Technical documentation and portfolio development</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>ULMER-FINAL-RTS26Summer</p>
+  </footer>
+
+</body>
+</html>
