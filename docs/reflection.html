@@ -1,17 +1,270 @@
-<main>
-  <section>
-    <h2>Final Reflection</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
 
-    <h3>What I Would Do Differently</h3>
-    <p>Your reflection text...</p>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-    <h3>What Was Harder Than Expected</h3>
-    <p>Your reflection text...</p>
+  <title>Reflection | Drop Tower Emergency-Stop Controller</title>
 
-    <h3>Most Valuable Lesson</h3>
-    <p>Your reflection text...</p>
+  <link rel="stylesheet" href="style.css">
+</head>
 
-    <h3>How I Would Scale This Toward Production</h3>
-    <p>Your reflection text...</p>
-  </section>
-</main>
+<body>
+
+  <header>
+    <h1>Final Project Reflection</h1>
+
+    <p>
+      What I learned while developing and testing a real-time
+      emergency-stop controller with FreeRTOS.
+    </p>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="results.html">Results &amp; Analysis</a>
+    <a href="reflection.html">Reflection</a>
+  </nav>
+
+  <main>
+
+    <section>
+      <h2>Project Reflection</h2>
+
+      <p>
+        For my final portfolio project, I chose to build on App 3, which
+        was an industrial emergency-stop controller for a drop-tower
+        attraction. The system used an ESP32-S3, FreeRTOS tasks, a GPIO
+        interrupt, a binary semaphore, and a direct task notification.
+        Pressing the emergency-stop button triggered an interrupt service
+        routine that recorded the interrupt time and woke two responder
+        tasks. I then measured how long each task took to begin running
+        under different processor-load conditions.
+      </p>
+
+      <p>
+        I chose this application because I thought it demonstrated one of
+        the most important ideas from this course. A real-time system is
+        not only judged by whether it eventually completes an operation.
+        It also has to complete that operation within an acceptable and
+        predictable amount of time. An emergency-stop task that runs too
+        late may still be functionally correct from the program's point
+        of view, but it would not be acceptable in an actual safety
+        system.
+      </p>
+    </section>
+
+    <section>
+      <h2>What Was Harder Than Expected</h2>
+
+      <p>
+        The most difficult part of this project was understanding why the
+        measured latency could change so much between tests. Before this
+        course, I probably would have assumed that the signaling method
+        with the smallest amount of overhead would always produce the
+        fastest response. My results showed that the signaling primitive
+        is only one part of the system.
+      </p>
+
+      <p>
+        With the background workload disabled, the direct task
+        notification produced a maximum measured latency of 30
+        microseconds, while the binary semaphore path produced a maximum
+        of 3,178 microseconds. When I enabled Tasks A through D, the
+        semaphore maximum increased to 10,369 microseconds and the
+        notification maximum increased to 22,951 microseconds.
+      </p>
+
+      <p>
+        At first, the loaded results seemed confusing because the direct
+        notification had performed much better during the idle test.
+        Looking more closely at the task priorities helped me understand
+        the result. The responder tasks had a priority of 12, but Task A
+        had a priority of 15. This meant Task A could delay either
+        responder whenever it was ready to run. Tasks B, C, and D had
+        lower priorities, so they could not preempt a responder after it
+        began executing.
+      </p>
+
+      <p>
+        This showed me that measured response time depends on the complete
+        scheduling environment. CPU load, task priorities, interrupt
+        timing, and the state of other tasks can all affect when an
+        awakened task actually begins running. Debugging a real-time
+        system therefore requires more than checking whether the code
+        reached the correct output.
+      </p>
+    </section>
+
+    <section>
+      <h2>What I Would Do Differently</h2>
+
+      <p>
+        If I repeated this project, I would create a more structured test
+        plan before collecting the final measurements. I would use the
+        same number of button presses for every test, record the minimum,
+        average, and maximum latency, and repeat each operating condition
+        several times. This would make it easier to determine whether a
+        result was typical or caused by an unusual scheduling event.
+      </p>
+
+      <p>
+        I would also test the binary semaphore and direct task
+        notification paths separately in addition to testing them
+        together. In the current application, the ISR wakes both
+        responder tasks from the same interrupt. Since both tasks use the
+        same priority and run on the same core, they can affect each
+        other's measured response time. Testing one path at a time would
+        provide a cleaner comparison of the two signaling methods.
+      </p>
+
+      <p>
+        Another improvement would be to make the system status easier to
+        observe while it is running. The current project uses serial
+        output, heartbeat counters, WCET measurements, and a logic
+        analyzer. A future version could include a live dashboard showing
+        the most recent interrupt time, responder latency, maximum
+        latency, heartbeat values, and whether the system is operating in
+        normal or degraded mode.
+      </p>
+
+      <p>
+        I would also spend more time planning the documentation while
+        developing the application instead of organizing everything at
+        the end. Building the GitHub Pages portfolio made me realize that
+        diagrams, screenshots, task tables, and explanations are easier
+        to produce when evidence is collected throughout the project.
+      </p>
+    </section>
+
+    <section>
+      <h2>Most Valuable Thing I Learned</h2>
+
+      <p>
+        The most valuable lesson I learned is that speed and real-time
+        behavior are not the same thing. A processor can be fast and
+        still fail to provide a predictable response. What matters is
+        whether the important task can meet its timing requirement under
+        the worst expected operating conditions.
+      </p>
+
+      <p>
+        This project also helped me understand why interrupt service
+        routines should remain short. My ISR only debounces the input,
+        records the entry time, pulses the logic-analyzer pin, signals
+        the responder tasks, and requests a scheduler yield. Longer work,
+        such as logging, updating statistics, and handling the simulated
+        emergency response, is completed in the bottom-half tasks.
+      </p>
+
+      <p>
+        The fault-injection test made this idea especially clear. I
+        removed <code>portYIELD_FROM_ISR()</code> while still allowing
+        the ISR to signal both responder tasks. The events were not lost,
+        and the program still appeared to work, but the maximum latency
+        increased to 34,835 microseconds for the semaphore and 44,843
+        microseconds for the notification.
+      </p>
+
+      <p>
+        This was an important example of a system being functionally
+        correct while failing to provide the expected real-time
+        performance. Before this course, I may have considered the test a
+        success because both tasks eventually ran. I now understand that
+        an emergency response that occurs too late should be treated as a
+        system failure.
+      </p>
+    </section>
+
+    <section>
+      <h2>How This Applies Beyond the Classroom</h2>
+
+      <p>
+        I expect the concepts from this project to be useful in embedded
+        systems, industrial controls, medical devices, and other systems
+        where software interacts with physical equipment. In these
+        applications, engineers must think about task priorities,
+        interrupt behavior, shared resources, worst-case execution time,
+        and what the system should do when timing requirements cannot be
+        guaranteed.
+      </p>
+
+      <p>
+        The project also gave me experience explaining an embedded system
+        through code, measurements, diagrams, and a public portfolio.
+        Being able to describe why a design decision was made is just as
+        important as showing that the program runs. I can now discuss how
+        the ISR and tasks communicate, why priorities affect latency, how
+        I measured the response, and what happened when I intentionally
+        introduced a fault.
+      </p>
+    </section>
+
+    <section>
+      <h2>Scaling Toward a Production System</h2>
+
+      <p>
+        This project is a simulation and would require major changes
+        before being used in a real amusement-ride safety system. A
+        production design would need certified hardware, redundant
+        emergency-stop channels, independent safety relays, watchdog
+        supervision, fault detection, protected communication, and
+        extensive verification and validation.
+      </p>
+
+      <p>
+        The emergency stop should not depend only on one processor or one
+        software task. A hardware safety circuit should be capable of
+        placing the ride into a safe state even if the microcontroller or
+        FreeRTOS application fails. The software could then provide
+        monitoring, diagnostics, event logging, and additional control
+        while the independent hardware safety path performs the critical
+        shutdown.
+      </p>
+
+      <p>
+        Even though this application is not a production controller, it
+        provided a useful small-scale example of the same engineering
+        questions: What work belongs in the ISR? Which task must run
+        first? What can delay the response? How is worst-case behavior
+        measured? What happens when part of the design fails? Those are
+        the questions I will continue using when working on future
+        embedded projects.
+      </p>
+    </section>
+
+    <section>
+      <h2>Final Takeaway</h2>
+
+      <p>
+        The biggest change in how I think about embedded systems is that
+        I no longer consider successful output by itself to be enough. I
+        also want to know when the output occurs, what can delay it, how
+        consistent the timing is, and whether the system enters a safe
+        state when something goes wrong.
+      </p>
+
+      <p>
+        This project brought together interrupts, task scheduling,
+        semaphores, direct notifications, priority interference, WCET
+        measurements, fault injection, and technical documentation. It
+        gave me a better understanding of both the technical side of
+        real-time systems and the responsibility involved in designing
+        software that may eventually interact with real people and
+        physical equipment.
+      </p>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>ULMER-FINAL-RTS26Summer</p>
+  </footer>
+
+</body>
+</html>
