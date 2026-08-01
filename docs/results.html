@@ -1,63 +1,320 @@
-<main>
-  <section>
-    <h2>Latency Results</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <table>
-      <thead>
-        <tr>
-          <th>Test Condition</th>
-          <th>Semaphore Maximum</th>
-          <th>Notification Maximum</th>
-        </tr>
-      </thead>
+  <title>Results | Drop Tower Emergency-Stop Controller</title>
 
-      <tbody>
-        <tr>
-          <td>Idle</td>
-          <td>Insert verified result</td>
-          <td>Insert verified result</td>
-        </tr>
+  <link rel="stylesheet" href="style.css">
+</head>
 
-        <tr>
-          <td>Background load enabled</td>
-          <td>Insert verified result</td>
-          <td>Insert verified result</td>
-        </tr>
+<body>
 
-        <tr>
-          <td>ISR yield removed</td>
-          <td>Insert verified result</td>
-          <td>Insert verified result</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Fault Injection</h2>
+  <header>
+    <h1>Experimental Results and Engineering Analysis</h1>
 
     <p>
-      The fault was introduced by removing portYIELD_FROM_ISR(). The
-      notification and semaphore were still delivered, but the awakened
-      tasks did not receive an immediate scheduling opportunity. This
-      demonstrated that functional correctness does not guarantee
-      acceptable real-time response.
+      Interrupt-to-task latency under idle, loaded, and fault-injection
+      conditions.
     </p>
-  </section>
+  </header>
 
-  <section>
-    <h2>Engineering Analysis</h2>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="results.html">Results & Analysis</a>
+    <a href="reflection.html">Reflection</a>
+  </nav>
 
-    <h3>Why keep the ISR short?</h3>
-    <p>Add your answer here.</p>
+  <main>
 
-    <h3>Why use a bottom-half task?</h3>
-    <p>Add your answer here.</p>
+    <section>
+      <h2>Latency Test Summary</h2>
 
-    <h3>Direct notification versus binary semaphore</h3>
-    <p>Add your measured comparison here.</p>
+      <p>
+        Each test used repeated emergency-stop button presses. Latency
+        was measured from the recorded ISR entry time to the beginning
+        of each responder task.
+      </p>
 
-    <h3>How did background load affect latency?</h3>
-    <p>Add your answer here.</p>
-  </section>
-</main>
+      <table>
+        <thead>
+          <tr>
+            <th>Test Condition</th>
+            <th>Semaphore Maximum</th>
+            <th>Notification Maximum</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>Load 0: background tasks disabled</td>
+            <td>3,178 &micro;s</td>
+            <td>30 &micro;s</td>
+          </tr>
+
+          <tr>
+            <td>Load 1: background tasks enabled</td>
+            <td>10,369 &micro;s</td>
+            <td>22,951 &micro;s</td>
+          </tr>
+
+          <tr>
+            <td>Fault injection: ISR yield removed</td>
+            <td>34,835 &micro;s</td>
+            <td>44,843 &micro;s</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Load 0 — Background Tasks Disabled</h2>
+
+      <p>
+        WITH_LOAD was set to 0, so only the two responder tasks were
+        running on Core 1. The direct task notification recorded a
+        maximum latency of 30 microseconds, while the binary semaphore
+        path recorded a maximum latency of 3,178 microseconds.
+      </p>
+
+      <img
+        src="assets/load0-results.png"
+        alt="Logic analyzer results with background load disabled"
+      >
+    </section>
+
+    <section>
+      <h2>Load 1 — Background Tasks Enabled</h2>
+
+      <p>
+        WITH_LOAD was set to 1, enabling Tasks A through D on Core 1.
+        The semaphore maximum increased to 10,369 microseconds, and the
+        notification maximum increased to 22,951 microseconds.
+      </p>
+
+      <p>
+        Task A is the main source of priority interference because its
+        priority of 15 is higher than the responder priority of 12.
+        Tasks B, C, and D use priorities 10, 5, and 2, so they cannot
+        preempt a responder task after it begins running.
+      </p>
+
+      <img
+        src="assets/load1-results.png"
+        alt="Logic analyzer results with background load enabled"
+      >
+    </section>
+
+    <section>
+      <h2>Effect of Background Load</h2>
+
+      <p>
+        The semaphore maximum increased by approximately 3.26 times:
+      </p>
+
+      <p>
+        <strong>10,369 / 3,178 &asymp; 3.26</strong>
+      </p>
+
+      <p>
+        The notification maximum increased by approximately 765 times:
+      </p>
+
+      <p>
+        <strong>22,951 / 30 &asymp; 765.03</strong>
+      </p>
+
+      <p>
+        These results demonstrate that the signaling primitive is only
+        one part of response latency. Task priorities, CPU contention,
+        and the scheduler determine when an awakened task can actually
+        begin executing.
+      </p>
+    </section>
+
+    <section>
+      <h2>Fault Injection</h2>
+
+      <p>
+        The induced failure removed the following statement from the
+        interrupt service routine:
+      </p>
+
+      <pre><code>portYIELD_FROM_ISR(higher_woken);</code></pre>
+
+      <p>
+        The semaphore and notification were still delivered, so the
+        program remained functionally operational. However, the
+        responder tasks did not receive an immediate scheduling
+        opportunity after the ISR completed.
+      </p>
+
+      <p>
+        The semaphore path reached a maximum latency of 34,835
+        microseconds, and the notification path reached 44,843
+        microseconds. This matched the predicted failure: the emergency
+        events were not lost, but their response was significantly
+        delayed.
+      </p>
+    </section>
+
+    <section>
+      <h2>Engineering Analysis</h2>
+
+      <h3>1. What belongs inside the ISR?</h3>
+
+      <p>
+        The ISR debounces the button, records the ISR entry time,
+        increments the press counter, pulses GPIO 19, signals the
+        semaphore and notification paths, and requests a scheduler yield.
+        These operations are short and directly related to handling the
+        interrupt.
+      </p>
+
+      <p>
+        The ISR does not perform memory allocation, delays, blocking
+        operations, long calculations, mutex operations, or detailed
+        logging. Those operations could keep the processor in interrupt
+        context too long and delay other time-sensitive activity.
+      </p>
+
+      <h3>2. Why use bottom-half responder tasks?</h3>
+
+      <p>
+        The bottom-half tasks allow longer emergency-response work to
+        occur in normal task context. This keeps the ISR brief while
+        still allowing the system to log the event, calculate latency,
+        update statistics, and represent a transition to a safe state.
+      </p>
+
+      <h3>3. Binary semaphore versus direct task notification</h3>
+
+      <p>
+        During the idle test, the direct task notification produced the
+        lower measured maximum latency: 30 microseconds compared with
+        3,178 microseconds for the semaphore path. A notification is a
+        lightweight one-to-one task signaling mechanism, while a binary
+        semaphore is a separate FreeRTOS synchronization object.
+      </p>
+
+      <p>
+        Under background load, scheduling interference dominated the
+        result, and the notification path recorded the larger maximum.
+        This shows why conclusions should be based on repeated
+        measurements under realistic processor loads rather than only
+        one idle test.
+      </p>
+
+      <h3>4. How do priorities affect emergency-response latency?</h3>
+
+      <p>
+        A ready task can only execute when no higher-priority task is
+        using the same core. Task A has priority 15, so it can delay the
+        priority-12 responder tasks. Tasks B, C, and D have lower
+        priorities and cannot interrupt the responders once they begin.
+      </p>
+
+      <h3>5. Why is portYIELD_FROM_ISR important?</h3>
+
+      <p>
+        When an ISR wakes a task that should run immediately,
+        portYIELD_FROM_ISR allows the scheduler to perform the context
+        switch as the ISR exits. Removing it leaves the task in the ready
+        state until another scheduling opportunity occurs, increasing
+        the response delay.
+      </p>
+    </section>
+
+    <section>
+      <h2>Hazard Analysis</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Hazard</th>
+            <th>Possible Cause</th>
+            <th>System Effect</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>Delayed emergency response</td>
+            <td>Higher-priority CPU workload</td>
+            <td>The safe-state task begins later than expected</td>
+            <td>
+              Measure worst-case latency and reserve an appropriate
+              responder priority
+            </td>
+          </tr>
+
+          <tr>
+            <td>Excessive ISR duration</td>
+            <td>Logging or long calculations inside the ISR</td>
+            <td>Other interrupts and tasks are delayed</td>
+            <td>
+              Keep the ISR short and defer work to a bottom-half task
+            </td>
+          </tr>
+
+          <tr>
+            <td>Delayed context switch</td>
+            <td>Missing portYIELD_FROM_ISR</td>
+            <td>The responder remains ready but does not run immediately</td>
+            <td>
+              Request the ISR yield when a higher-priority task is awakened
+            </td>
+          </tr>
+
+          <tr>
+            <td>False repeated emergency events</td>
+            <td>Mechanical button bounce</td>
+            <td>One press is interpreted as multiple events</td>
+            <td>Apply a minimum debounce interval inside the ISR</td>
+          </tr>
+
+          <tr>
+            <td>Incorrect latency measurement</td>
+            <td>Unsafe handling of shared timestamp data</td>
+            <td>Recorded results do not represent actual response time</td>
+            <td>
+              Use controlled shared-data access and carefully defined
+              measurement points
+            </td>
+          </tr>
+
+          <tr>
+            <td>Responder starvation</td>
+            <td>Incorrect priority assignment</td>
+            <td>The emergency task may wait for an unacceptable duration</td>
+            <td>
+              Verify priority relationships under worst-case processor load
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Safe-State Principle</h2>
+
+      <p>
+        A production ride controller should default to a safe state when
+        an emergency event is detected or when timing behavior becomes
+        uncertain. This simulated project represents that behavior by
+        treating every accepted emergency-stop interrupt as a command to
+        stop operation, activate alarms, and record the event.
+      </p>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>ULMER-FINAL-RTS26Summer</p>
+  </footer>
+
+</body>
+</html>
