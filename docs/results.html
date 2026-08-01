@@ -165,36 +165,37 @@
 
       <h3>1. What belongs inside the ISR?</h3>
 
-      <p>
-        static void IRAM_ATTR button_isr(void *arg)  
-        //Handles instruction RAM instead of waiting on flash access, this helps reduce interrupt latency 
-        { 
-        //Bracket for everything inside ISR 
-        int64_t now = esp_timer_get_time(); 
-        //Records USR entry time, used to measure latency and for the debounce 
-        if (now - last_edge_us < DEBOUNCE_US) return; 
-        //Debounce button so multiple triggers from 1 press get ignored 
-        last_edge_us = now; 
-        //Debounce button so multiple triggers from 1 press get ignored 
-        gpio_set_level(ISR_PULSE_GPIO, 1); 
-        //Drives GPIO 19 high for ISR entry for the logic analyzer 
-        isr_entry_time_us = now; 
-        //Records the accepted interrupt time 
-        presses_observed++; 
-        //Counts how many times the button was pressed 
-        BaseType_t higher_woken = pdFALSE; 
-        //Tracks if the ISR woke a higher priority task 
-        xSemaphoreGiveFromISR(btn_sem, &higher_woken); 
-        //Signals to binary semaphore bottom half task 
-        vTaskNotifyGiveFromISR(task_notif_handle, &higher_woken); 
-        //Signals direct task notification for the bottom half task 
-        gpio_set_level(ISR_PULSE_GPIO, 0); 
-        //Drives GPIO 19 low for ISR, leaving to measure the pulse width 
-        portYIELD_FROM_ISR(higher_woken); 
-        //Switches immediately to a woken higher priority task after ISR exits 
-        } 
-        //Closing bracket for end of ISR 
-      </p>
+      <pre><code>static void IRAM_ATTR button_isr(void *arg)
+{
+    // Uses instruction RAM instead of waiting on flash access.
+    int64_t now = esp_timer_get_time();
+
+    // Ignore repeated edges caused by button bounce.
+    if (now - last_edge_us &lt; DEBOUNCE_US) return;
+    last_edge_us = now;
+
+    // Raise GPIO 19 to mark ISR entry for the logic analyzer.
+    gpio_set_level(ISR_PULSE_GPIO, 1);
+
+    // Record the accepted ISR entry time.
+    isr_entry_time_us = now;
+    presses_observed++;
+
+    // Track whether a higher-priority task was awakened.
+    BaseType_t higher_woken = pdFALSE;
+
+    // Wake the binary-semaphore bottom-half task.
+    xSemaphoreGiveFromISR(btn_sem, &amp;higher_woken);
+
+    // Wake the direct-notification bottom-half task.
+    vTaskNotifyGiveFromISR(task_notif_handle, &amp;higher_woken);
+
+    // Lower GPIO 19 to complete the ISR timing pulse.
+    gpio_set_level(ISR_PULSE_GPIO, 0);
+
+    // Immediately schedule an awakened higher-priority task if needed.
+    portYIELD_FROM_ISR(higher_woken);
+}</code></pre>
 
       <p>
         My ISR does not contain any long tasking and needs to stay short. It does not have any memory 
@@ -202,7 +203,7 @@
         while. These belong in the bottom half tasks since that is meant to handle the longer operations. 
       </p>
 
-      <h3>2. **Binary semaphore vs direct task notification** — quote your measured latency 
+      <h3>2. Binary semaphore vs direct task notification — quote your measured latency 
         numbers. Which is faster? Why? </h3>
 
       <p>
@@ -212,7 +213,7 @@
         explain why and to just quote which task runs faster, and we will learn why in later units.
       </p>
 
-      <h3>3. **Latency under load** — quote idle (`WITH_LOAD 0`) vs loaded (`WITH_LOAD 1`) 
+      <h3>3. Latency under load — quote idle (`WITH_LOAD 0`) vs loaded (`WITH_LOAD 1`) 
         numbers.</h3>
 
       <p>
