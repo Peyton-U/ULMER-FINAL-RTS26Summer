@@ -166,45 +166,64 @@
       <h3>1. What belongs inside the ISR?</h3>
 
       <p>
-        The ISR debounces the button, records the ISR entry time,
-        increments the press counter, pulses GPIO 19, signals the
-        semaphore and notification paths, and requests a scheduler yield.
-        These operations are short and directly related to handling the
-        interrupt.
+        static void IRAM_ATTR button_isr(void *arg)  
+        //Handles instruction RAM instead of waiting on flash access, this helps reduce interrupt latency 
+        { 
+        //Bracket for everything inside ISR 
+        int64_t now = esp_timer_get_time(); 
+        //Records USR entry time, used to measure latency and for the debounce 
+        if (now - last_edge_us < DEBOUNCE_US) return; 
+        //Debounce button so multiple triggers from 1 press get ignored 
+        last_edge_us = now; 
+        //Debounce button so multiple triggers from 1 press get ignored 
+        gpio_set_level(ISR_PULSE_GPIO, 1); 
+        //Drives GPIO 19 high for ISR entry for the logic analyzer 
+        isr_entry_time_us = now; 
+        //Records the accepted interrupt time 
+        presses_observed++; 
+        //Counts how many times the button was pressed 
+        BaseType_t higher_woken = pdFALSE; 
+        //Tracks if the ISR woke a higher priority task 
+        xSemaphoreGiveFromISR(btn_sem, &higher_woken); 
+        //Signals to binary semaphore bottom half task 
+        vTaskNotifyGiveFromISR(task_notif_handle, &higher_woken); 
+        //Signals direct task notification for the bottom half task 
+        gpio_set_level(ISR_PULSE_GPIO, 0); 
+        //Drives GPIO 19 low for ISR, leaving to measure the pulse width 
+        portYIELD_FROM_ISR(higher_woken); 
+        //Switches immediately to a woken higher priority task after ISR exits 
+        } 
+        //Closing bracket for end of ISR 
       </p>
 
       <p>
-        The ISR does not perform memory allocation, delays, blocking
-        operations, long calculations, mutex operations, or detailed
-        logging. Those operations could keep the processor in interrupt
-        context too long and delay other time-sensitive activity.
+        My ISR does not contain any long tasking and needs to stay short. It does not have any memory 
+        allocation, delays, mutexes, long processing, logging, or other similar tasks that could take a 
+        while. These belong in the bottom half tasks since that is meant to handle the longer operations. 
       </p>
 
-      <h3>2. Why use bottom-half responder tasks?</h3>
+      <h3>2. **Binary semaphore vs direct task notification** — quote your measured latency 
+        numbers. Which is faster? Why? </h3>
 
       <p>
-        The bottom-half tasks allow longer emergency-response work to
-        occur in normal task context. This keeps the ISR brief while
-        still allowing the system to log the event, calculate latency,
-        update statistics, and represent a transition to a safe state.
+        Running the idle with load 0, I measured the binary semaphore path at a max 3178 us latency 
+        and the direct task notification path at a max 30 us latency. The direct task notification runs 
+        faster by a larger margin than the binary semaphore. The assignment on Canvas says not to 
+        explain why and to just quote which task runs faster, and we will learn why in later units.
       </p>
 
-      <h3>3. Binary semaphore versus direct task notification</h3>
+      <h3>3. **Latency under load** — quote idle (`WITH_LOAD 0`) vs loaded (`WITH_LOAD 1`) 
+        numbers.</h3>
 
       <p>
-        During the idle test, the direct task notification produced the
-        lower measured maximum latency: 30 microseconds compared with
-        3,178 microseconds for the semaphore path. A notification is a
-        lightweight one-to-one task signaling mechanism, while a binary
-        semaphore is a separate FreeRTOS synchronization object.
-      </p>
-
-      <p>
-        Under background load, scheduling interference dominated the
-        result, and the notification path recorded the larger maximum.
-        This shows why conclusions should be based on repeated
-        measurements under realistic processor loads rather than only
-        one idle test.
+        Idle load 0 latency was measured at the binary semaphore, max 3178 us latency, and direct 
+        task notification max 30 us latency. For loaded load 1, latency was measured at binary 
+        semaphore max 10369 us latency and direct task notification max 22951 us latency. Running 
+        the system-loaded increases the latency for both tasks. The semaphore latency increased by 
+        3.26x, and the notification latency increased by 765.03x. Since Task A has a priority of 15, when 
+        loaded it can delay the bottom half from running since it has the higher priority. Since the bottom 
+        half has a priority of 12, and the other tasks B, C, and D have lower priorities, respectively being 
+        10, 5, and 2. They won't preempt the bottom half task once it's ready.  
       </p>
 
       <h3>4. How do priorities affect emergency-response latency?</h3>
